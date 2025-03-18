@@ -18,61 +18,66 @@ import eu.sndr.fluttermdnsplugin.handlers.DiscoveryRunningHandler;
 import eu.sndr.fluttermdnsplugin.handlers.ServiceDiscoveredHandler;
 import eu.sndr.fluttermdnsplugin.handlers.ServiceResolvedHandler;
 import eu.sndr.fluttermdnsplugin.handlers.ServiceLostHandler;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
 
 import static android.content.ContentValues.TAG;
 
+import androidx.annotation.NonNull;
+
 /** FlutterMdnsPlugin */
-public class FlutterMdnsPlugin implements MethodCallHandler {
+public class FlutterMdnsPlugin implements MethodCallHandler,FlutterPlugin {
 
   private final static String NAMESPACE = "eu.sndr.mdns";
 
   private NsdManager mNsdManager;
   private NsdManager.DiscoveryListener mDiscoveryListener;
   private ArrayList<NsdServiceInfo> mDiscoveredServices;
+  private Context context;
 
-  /** Plugin registration. */
-  public static void registerWith(Registrar registrar) {
-
-    final MethodChannel channel = new MethodChannel(registrar.messenger(), "flutter_mdns_plugin");
-    channel.setMethodCallHandler(new FlutterMdnsPlugin(registrar));
-
-  }
-
-  FlutterMdnsPlugin(Registrar r) {
-
-    mDiscoveredServices = new ArrayList<>();
-
-    EventChannel serviceDiscoveredChannel = new EventChannel(r.messenger(), NAMESPACE + "/discovered");
-    mDiscoveredHandler = new ServiceDiscoveredHandler();
-    serviceDiscoveredChannel.setStreamHandler(mDiscoveredHandler);
-
-    EventChannel serviceResolved = new EventChannel(r.messenger(), NAMESPACE + "/resolved");
-    mResolvedHandler = new ServiceResolvedHandler();
-    serviceResolved.setStreamHandler(mResolvedHandler);
-
-    EventChannel serviceLost = new EventChannel(r.messenger(), NAMESPACE + "/lost");
-    mLostHandler = new ServiceLostHandler();
-    serviceLost.setStreamHandler(mLostHandler);
-
-    EventChannel discoveryRunning = new EventChannel(r.messenger(), NAMESPACE + "/running");
-    mDiscoveryRunningHandler = new DiscoveryRunningHandler(r.activity());
-    discoveryRunning.setStreamHandler(mDiscoveryRunningHandler);
-
-    mRegistrar = r;
-
-  }
-
-  private Registrar mRegistrar;
+  private MethodChannel channel;
   private DiscoveryRunningHandler mDiscoveryRunningHandler;
   private ServiceDiscoveredHandler mDiscoveredHandler;
   private ServiceResolvedHandler mResolvedHandler;
   private ServiceLostHandler mLostHandler;
+
+  @Override
+  public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+    context = binding.getApplicationContext();
+    channel = new MethodChannel(binding.getBinaryMessenger(), "flutter_mdns_plugin");
+    channel.setMethodCallHandler(this);
+
+    mDiscoveredServices = new ArrayList<>();
+
+    EventChannel serviceDiscoveredChannel = new EventChannel(binding.getBinaryMessenger(), NAMESPACE + "/discovered");
+    mDiscoveredHandler = new ServiceDiscoveredHandler();
+    serviceDiscoveredChannel.setStreamHandler(mDiscoveredHandler);
+
+    EventChannel serviceResolved = new EventChannel(binding.getBinaryMessenger(), NAMESPACE + "/resolved");
+    mResolvedHandler = new ServiceResolvedHandler();
+    serviceResolved.setStreamHandler(mResolvedHandler);
+
+    EventChannel serviceLost = new EventChannel(binding.getBinaryMessenger(), NAMESPACE + "/lost");
+    mLostHandler = new ServiceLostHandler();
+    serviceLost.setStreamHandler(mLostHandler);
+
+    EventChannel discoveryRunning = new EventChannel(binding.getBinaryMessenger(), NAMESPACE + "/running");
+    mDiscoveryRunningHandler = new DiscoveryRunningHandler(context);
+    discoveryRunning.setStreamHandler(mDiscoveryRunningHandler);
+  }
+
+  @Override
+  public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
+    channel.setMethodCallHandler(null);
+    mDiscoveryRunningHandler = null;
+    mDiscoveredHandler = null;
+    mResolvedHandler = null;
+    mLostHandler = null;
+  }
 
   @Override
   public void onMethodCall(MethodCall call, Result result) {
@@ -101,7 +106,7 @@ public class FlutterMdnsPlugin implements MethodCallHandler {
   @SuppressLint("NewApi")
   private void startDiscovery(String serviceName) {
 
-    mNsdManager = (NsdManager)mRegistrar.activity().getSystemService(Context.NSD_SERVICE);
+    mNsdManager = (NsdManager)context.getSystemService(Context.NSD_SERVICE);
 
     mDiscoveryListener = new NsdManager.DiscoveryListener(){
 
