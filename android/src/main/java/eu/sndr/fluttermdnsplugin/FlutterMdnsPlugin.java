@@ -173,8 +173,16 @@ public class FlutterMdnsPlugin implements MethodCallHandler,FlutterPlugin {
 
       @Override
       public void onServiceLost(NsdServiceInfo nsdServiceInfo) {
-        Log.d(TAG, "Lost Service : " + nsdServiceInfo.toString());
-        mLostHandler.onServiceLost(ServiceToMap(nsdServiceInfo));
+        try {
+          if (mLostHandler != null && nsdServiceInfo != null) {
+            Map<String, Object> serviceMap = ServiceToMap(nsdServiceInfo);
+            if (serviceMap != null) {
+              mLostHandler.onServiceLost(serviceMap);
+            }
+          }
+        } catch (Exception e) {
+          Log.e(TAG, "onServiceLost error: ", e);
+        }
       }
     };
 
